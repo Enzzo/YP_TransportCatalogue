@@ -1,113 +1,127 @@
 #include <algorithm>
 #include <numeric>
+#include <optional>
 
 #include "transport_catalogue.h"
 
 namespace tc {
 	using namespace detail;
 	void TransportCatalogue::AddStop(const Stop& stop) {
-		Stop* found_stop = FindStop(stop.name);
-
-		if (found_stop == nullptr) {
-			std::deque<Stop>::iterator it;
-			it = stops_.emplace(stops_.end(), stop);
-			auto ptr_stop = &*it;
-			index_stops_[ptr_stop->name] = ptr_stop;
-			buses_for_stops_[ptr_stop];
-		}
-		else {
-			*found_stop = { stop.name, stop.coord };
-		}
+		const auto& iter_stop = stops_.emplace(stops_.end(), stop);
+		const auto ptr_stop = std::make_shared<Stop>(*iter_stop);
+		ptr_stops_.emplace(ptr_stop);
+		buses_for_stops_[ptr_stop];
+		index_stops_[ptr_stop->name] = ptr_stop;
 	}
 
 	void TransportCatalogue::AddBus(const Bus& bus) {
-		Bus* found_bus = FindBus(bus.number);
-
-		if (found_bus == nullptr) {
-			std::deque<Bus>::iterator it = buses_.emplace(buses_.end(), bus);
-			auto ptr_bus = &*it;
-			index_buses_[ptr_bus->number] = ptr_bus;
-
-			for (auto& stop : ptr_bus->stops) {
-				buses_for_stops_[stop].emplace(ptr_bus);
-			}
+		const auto& iter_bus = buses_.emplace(buses_.end(), bus);
+		const auto ptr_bus = std::make_shared<Bus>(*iter_bus);
+		ptr_buses_.emplace(ptr_bus);
+		for (auto& stop : ptr_bus->stops) {
+			stop->free = false;
+			buses_for_stops_[stop].emplace(ptr_bus);
 		}
-		else {
-			*found_bus = { bus.number, bus.is_ring, bus.stops };
-		}
+		SetBusStat(ptr_bus);
+		index_buses_[ptr_bus->number] = ptr_bus;
+		
 	}
 
-	[[nodiscard]] Bus* TransportCatalogue::FindBus(const std::string& bus) const {
+	[[nodiscard]] std::shared_ptr<Bus> TransportCatalogue::FindBus(const std::string_view bus) const {
 		if (index_buses_.count(bus) != 0) {
 			return index_buses_.at(bus);
 		}
 		return nullptr;
 	}
 
-	[[nodiscard]] Stop* TransportCatalogue::FindStop(const std::string& stop) const {
+	[[nodiscard]] std::shared_ptr<Stop> TransportCatalogue::FindStop(const std::string_view stop) const {
 		if (index_stops_.count(stop) != 0) {
 			return index_stops_.at(stop);
 		}
 		return nullptr;
 	}
 
-	[[nodiscard]] const BusInfo TransportCatalogue::GetBusInfo(const Bus& bus)const {
-		using geo::ComputeDistance;
+	std::optional<BusInfo> TransportCatalogue::GetBusInfo(const std::string_view bus_number)const {
+		const std::shared_ptr<Bus>& bus = FindBus(bus_number);
+		if (!bus) {
+			return std::nullopt;
+		}
+		return buses_info_.at(bus);
+	}
+
+	std::shared_ptr<Buses> TransportCatalogue::GetBusesByStop(const std::string_view stop_name) const {
+		std::shared_ptr<Stop> stop = FindStop(stop_name);
+		if (!stop) {
+			return nullptr;
+		}
+		auto test = buses_for_stops_.at(stop);
+		return std::make_shared<Buses>(buses_for_stops_.at(stop));
+	}
+
+	void TransportCatalogue::AddDistanceBetweenStops(std::shared_ptr<Stop> from, std::shared_ptr<Stop> to, float distance) {
+		distance_between_stops_[std::make_pair(from, to)] = distance;
+	}
+
+	float TransportCatalogue::GetDistanceBetweenStops(std::shared_ptr<Stop> stop1, std::shared_ptr<Stop> stop2) const {
+
+		auto pair = std::make_pair(stop1, stop2);
+		if (distance_between_stops_.count(pair) != 0) {
+			return distance_between_stops_.at(pair);
+		}
+		pair = std::make_pair(stop1, stop2);
+		if (distance_between_stops_.count(pair) != 0) {
+			return distance_between_stops_.at(pair);
+		}
+		return 0.0;
+	}
+
+	void TransportCatalogue::SetBusStat(std::shared_ptr<Bus> bus) {
 
 		std::unordered_set<std::string> unique_stops;
 		BusInfo info;
-		const std::vector<Stop*>& v_stops = bus.stops;
-		std::vector<double> dist;
+		const std::vector<std::shared_ptr<Stop>>& v_stops = bus->stops;		
 
 		std::for_each(v_stops.begin(), v_stops.end(), [&unique_stops](auto stop) {
 			unique_stops.insert(stop->name);
 			});
 
-		double geographical_length = std::transform_reduce(bus.stops.begin() + 1, bus.stops.end(),
-			bus.stops.begin(), 0.0, std::plus<>{}, [](const Stop* s2, const Stop* s1) {
+		double geographical_length = std::transform_reduce(bus->stops.begin() + 1, bus->stops.end(),
+			bus->stops.begin(), 0.0, std::plus<>{}, [](const auto s2, const auto s1) {
 				return ComputeDistance(s1->coord, s2->coord);
 			}
 		);
 
-		info.stops = bus.stops.size();
+		info.stops = bus->stops.size();
 		info.unique_stops = unique_stops.size();
 
-		info.route_length = std::transform_reduce(bus.stops.begin() + 1, bus.stops.end(),
-			bus.stops.begin(), 0, std::plus<>{}, [this](const Stop* s2, const Stop* s1) {
-				return GetDistanceBetweenStops(s1->name, s2->name);
+		info.route_length = std::transform_reduce(bus->stops.begin() + 1, bus->stops.end(),
+			bus->stops.begin(), 0, std::plus<>{}, [this](const auto s2, const auto s1) {
+				return GetDistanceBetweenStops(s1, s2);
 			}
 		);
+
+		if (!bus->is_ring) {
+			geographical_length *= 2;
+
+			info.stops = info.stops * 2 - 1;
+
+			info.route_length += std::transform_reduce(bus->stops.rbegin()+1, bus->stops.rend(),
+				bus->stops.rbegin(), 0, std::plus<>{}, [this](const auto s2, const auto s1) {
+					return GetDistanceBetweenStops(s1, s2);
+				}
+			);
+		}
+
 		info.curvature = info.route_length / geographical_length;
 
-		return info;
+		buses_info_[bus] = std::move(info);
 	}
 
-	[[nodiscard]] const std::unordered_set<Bus*> TransportCatalogue::GetBusesByStop(const std::string& stop_name) const {
-		Stop* stop = FindStop(stop_name);
-		if (!stop) {
-			return {};
-		}
-		return std::unordered_set<Bus*>(buses_for_stops_.at(stop));
+	const Buses& TransportCatalogue::GetBuses() const {
+		return ptr_buses_;
 	}
 
-	void TransportCatalogue::AddDistanceBetweenStops(const std::string& from, const std::string& to, const int distance) {
-		Stop* f = FindStop(from);
-		Stop* t = FindStop(to);
-		if (!f) { AddStop(std::move(Stop({ from, {0.0, 0.0} }))); }
-		if (!t) { AddStop(std::move(Stop({ to, {0.0, 0.0} }))); }
-		auto forward = std::make_pair(FindStop(from), FindStop(to));
-		auto backward = std::make_pair(FindStop(to), FindStop(from));
-		distance_between_stops_[forward] = distance;
-		auto it = distance_between_stops_.find(backward);
-
-		if (it == distance_between_stops_.end()) {
-			distance_between_stops_.emplace((backward), distance);
-		}
-	}
-
-	int TransportCatalogue::GetDistanceBetweenStops(const std::string& stop1, const std::string& stop2) const {
-		const std::pair<Stop*, Stop*> p(FindStop(stop1), FindStop(stop2));
-
-		return distance_between_stops_.at(p);
+	const Stops& TransportCatalogue::GetStops() const {
+		return ptr_stops_;
 	}
 }

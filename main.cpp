@@ -1,29 +1,30 @@
 #include <iostream>
-#include <iomanip>
+#include <fstream>
+#include <string>
 
-#include "transport_catalogue.h"
-#include "input_reader.h"
-#include "stat_reader.h"
+#include "json.h"
+#include "json_reader.h"
+#include "map_renderer.h"
 
 int main() {
-	tc::TransportCatalogue transport_catalogue;
-	inp::Reader input(transport_catalogue);
-	st::Reader output(transport_catalogue);
+	tc::TransportCatalogue base;	
+	MapRenderer renderer;
+	RequestHandler request(base, renderer);
+	JSONreader reader(base, renderer, request);
 
-	std::cout << std::setprecision(6);
+	const json::Document doc = json::Load(std::cin);
+	const auto& mode = doc.GetRoot().AsMap();
+	
+	if (mode.count("base_requests") || mode.count("render_settings")) {
+		reader.ReadRequest(doc);
+	}
+	if (mode.count("stat_requests")) {
+		reader.ReadRequests(doc);
+		reader.ReadTransportCatalogue();
 
-	int base_request_count;
-	std::cin >> base_request_count;
-	//make base
-	for (int i = 0; i < base_request_count; ++i) {
-		input.Request();
+		std::ofstream out("out.svg");
+		request.RenderMap(out);
 	}
 
-	std::cin >> base_request_count;
-	//read base
-	for (int i = 0; i < base_request_count; ++i) {
-		output.Request();
-		output.Answer();
-	}
 	return 0;
 }
