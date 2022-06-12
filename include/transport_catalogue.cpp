@@ -76,11 +76,9 @@ namespace tc {
 	}
 
 	void TransportCatalogue::SetBusStat(std::shared_ptr<Bus> bus) {
-
 		std::unordered_set<std::string> unique_stops;
 		BusInfo info;
 		const std::vector<std::shared_ptr<Stop>>& v_stops = bus->stops;		
-
 		std::for_each(v_stops.begin(), v_stops.end(), [&unique_stops](auto stop) {
 			unique_stops.insert(stop->name);
 			});
@@ -102,9 +100,7 @@ namespace tc {
 
 		if (!bus->is_ring) {
 			geographical_length *= 2;
-
 			info.stops = info.stops * 2 - 1;
-
 			info.route_length += std::transform_reduce(bus->stops.rbegin()+1, bus->stops.rend(),
 				bus->stops.rbegin(), 0, std::plus<>{}, [this](const auto s2, const auto s1) {
 					return GetDistanceBetweenStops(s1, s2);

@@ -40,10 +40,7 @@ class SphereProjector final {
 public:
     SphereProjector() = default;
 
-    SphereProjector(const geo::Coordinates& left_top,
-        const geo::Coordinates& right_bottom,
-        double width, double height, double padding);
-
+    SphereProjector(const geo::Coordinates& left_top, const geo::Coordinates& right_bottom, double width, double height, double padding);
     svg::Point operator()(const geo::Coordinates& coords) const;
 };
 
