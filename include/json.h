@@ -5,8 +5,6 @@
 #include <string>
 #include <vector>
 #include <variant>
-#include <stack>
-#include <memory>
 
 namespace json {
 
@@ -18,8 +16,6 @@ namespace json {
     public:
         using runtime_error::runtime_error;
     };
-
-    using Value = std::variant<std::nullptr_t, Array, Dict, bool, int, double, std::string>;
 
     class Node final : private std::variant<std::nullptr_t, Array, Dict, bool, int, double, std::string> {
     public:
@@ -62,12 +58,13 @@ namespace json {
         explicit Document(Node root);
         const Node& GetRoot() const;
 
-        bool operator==(const Document&) const;
-        bool operator!=(const Document&) const;
-
     private:
         Node root_;
     };
+
+    inline bool operator==(const Document& lhs, const Document& rhs);
+
+    inline bool operator!=(const Document& lhs, const Document& rhs);
 
     Document Load(std::istream& input);
 

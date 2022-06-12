@@ -239,7 +239,7 @@ namespace svg {
         Polyline& AddPoint(Point point);
 
     private:
-        void RenderObject(const RenderContext& context) const override;        
+        void RenderObject(const RenderContext& context) const override;
     };
 
     // ---------- Text ------------------

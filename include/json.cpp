@@ -410,7 +410,7 @@ namespace json {
         return std::holds_alternative<std::nullptr_t>(*this);
     }
 
-    const Value& Node::GetValue() const {
+    const Node::Value& Node::GetValue() const {
         return *this;
     }
 
@@ -424,14 +424,6 @@ namespace json {
 
     Document::Document(Node root)
         : root_(move(root)) {
-    }
-
-    bool Document::operator==(const Document& other) const {
-        return (this->root_ == other.root_);
-    }
-
-    bool Document::operator!=(const Document& other) const {
-        return !(*this == other);
     }
 
     const Node& Document::GetRoot() const {

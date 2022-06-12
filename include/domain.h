@@ -13,15 +13,15 @@ struct Stop {
 };
 
 struct Bus {
-	std::string number;
-	bool is_ring = false;
+	bool is_ring = true;
+	std::string number;	
 	std::vector<std::shared_ptr<Stop>> stops;
 };
 
 struct BusInfo {
 	uint64_t stops = 0;
 	uint64_t unique_stops = 0;
-	float route_length = 0;
+	uint64_t route_length = 0;
 	double curvature = 1.0;
 };
 
@@ -48,12 +48,57 @@ using Stops = std::set<std::shared_ptr<Stop>, StopComparator>;
 
 namespace detail {
 	class DistanceHasher {
+		std::hash<void*> p_hasher;
 	public:
 		size_t operator()(const std::pair<std::shared_ptr<Stop>, std::shared_ptr<Stop>>& p) const {
-			std::hash<void*> hasher;
-			size_t h1 = hasher(p.first.get());
-			size_t h2 = hasher(p.second.get()) * 37 ^ 3;
-			return h1 + h2;
+			size_t p_hash_first = p_hasher(p.first.get());
+			size_t p_hash_second = p_hasher(p.second.get());
+			return p_hash_first + p_hash_second * 10;
 		}
+	};
+}
+
+namespace tr {
+	//--------------Road----------------
+
+	struct Road {
+		Road() = default;
+		double             minutes = 0;
+		std::string        name;
+		int                span_count = 0;
+	};
+
+	Road operator+(const Road& lhs, const Road& rhs);
+
+	bool operator<(const Road& lhs, const Road& rhs);
+
+	bool operator>(const Road& lhs, const Road& rhs);
+
+	//--------------Settings----------------
+
+	struct Settings {
+		int            bus_wait_time = 1;
+		double         bus_velocity = 1;
+	};
+
+	struct Info {
+		struct Wait {
+			double         minutes = 0;
+			std::string    stop_name;
+		};
+
+		struct Bus {
+			double         minutes = 0;
+			std::string    number;
+			int            span_count = 0;
+		};
+
+		Wait       wait;
+		Bus        bus;
+	};
+
+	struct ReportRouter {
+		std::vector<Info>  information;
+		double             total_minutes = 0;
 	};
 }
