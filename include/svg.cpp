@@ -8,7 +8,7 @@ namespace svg {
     // ---------- Rgb ------------------    
 
     Rgb::Rgb(uint8_t r, uint8_t g,
-        uint8_t b)
+             uint8_t b)
         : red(r)
         , green(g)
         , blue(b) {}
@@ -16,7 +16,7 @@ namespace svg {
     // ---------- Rgba ------------------  
 
     Rgba::Rgba(uint8_t r, uint8_t g,
-        uint8_t b, double a)
+               uint8_t b, double a)
         : Rgb(r, g, b)
         , opacity(a) {}
 
@@ -49,15 +49,15 @@ namespace svg {
 
     ostream& operator<<(ostream& stream, const StrokeLineCap& stroke_line_cap) {
         switch (stroke_line_cap) {
-        case StrokeLineCap::BUTT:
-            stream << "butt"sv;
-            break;
-        case StrokeLineCap::ROUND:
-            stream << "round"sv;
-            break;
-        case StrokeLineCap::SQUARE:
-            stream << "square"sv;
-            break;
+            case StrokeLineCap::BUTT: 
+                stream << "butt"sv; 
+                break;
+            case StrokeLineCap::ROUND: 
+                stream << "round"sv;
+                break;
+            case StrokeLineCap::SQUARE: 
+                stream << "square"sv; 
+                break;
         }
         return stream;
     }
@@ -66,21 +66,21 @@ namespace svg {
 
     ostream& operator<<(ostream& stream, const StrokeLineJoin& stroke_line_join) {
         switch (stroke_line_join) {
-        case StrokeLineJoin::ARCS:
-            stream << "arcs"sv;
-            break;
-        case StrokeLineJoin::BEVEL:
-            stream << "bevel"sv;
-            break;
-        case StrokeLineJoin::MITER:
-            stream << "miter"sv;
-            break;
-        case StrokeLineJoin::MITER_CLIP:
-            stream << "miter-clip"sv;
-            break;
-        case StrokeLineJoin::ROUND:
-            stream << "round"sv;
-            break;
+            case StrokeLineJoin::ARCS: 
+                stream << "arcs"sv; 
+                break;
+            case StrokeLineJoin::BEVEL: 
+                stream << "bevel"sv; 
+                break;
+            case StrokeLineJoin::MITER: 
+                stream << "miter"sv;
+                break;
+            case StrokeLineJoin::MITER_CLIP: 
+                stream << "miter-clip"sv;
+                break;
+            case StrokeLineJoin::ROUND: 
+                stream << "round"sv;
+                break;
         }
         return stream;
     }
@@ -223,53 +223,53 @@ namespace svg {
 
     TypeChar Text::GetTypeChar(char c) const {
         switch (c) {
-        case '\"':
-            return TypeChar::QUOT;
-        case '\'':
-            return TypeChar::APOS;
-        case '<':
-            return TypeChar::LT;
-        case '>':
-            return TypeChar::GT;
-        case '&':
-            return TypeChar::AMP;
-        default:
-            return TypeChar::OTHER;
+            case '\"':
+                return TypeChar::QUOT;
+            case '\'': 
+                return TypeChar::APOS;
+            case '<': 
+                return TypeChar::LT;
+            case '>': 
+                return TypeChar::GT;
+            case '&': 
+                return TypeChar::AMP;
+            default: 
+                return TypeChar::OTHER;
         }
     }
 
     void Text::ScreenString(ostream& out) const {
         for (char c : data_) {
             switch (GetTypeChar(c)) {
-            case TypeChar::QUOT:
-                out << "&quot;"sv;
-                break;
-            case TypeChar::APOS:
-                out << "&apos;"sv;
-                break;
-            case TypeChar::LT:
-                out << "&lt;"sv;
-                break;
-            case TypeChar::GT:
-                out << "&gt;"sv;
-                break;
-            case TypeChar::AMP:
-                out << "&amp;"sv;
-                break;
-            case TypeChar::OTHER:
-                out << c;
-                break;
+                case TypeChar::QUOT: 
+                    out << "&quot;"sv;
+                    break;
+                 case TypeChar::APOS: 
+                     out << "&apos;"sv;
+                     break;
+                 case TypeChar::LT: 
+                     out << "&lt;"sv;
+                     break;
+                 case TypeChar::GT: 
+                     out << "&gt;"sv;
+                     break;
+                 case TypeChar::AMP: 
+                     out << "&amp;"sv;
+                     break;
+                 case TypeChar::OTHER: 
+                     out << c;
+                     break;
             }
         }
     }
 
     // ---------- Document ------------------ 
 
-    void Document::AddPtr(std::shared_ptr<Object>&& obj) {
+    void Document::AddPtr(shared_ptr<Object>&& obj) {
         objects_.emplace_back(move(obj));
     }
 
-    void Document::Render(std::ostream& out) const {
+    void Document::Render(ostream& out) const {
         out << "<?xml version=\"1.0\" encoding=\"UTF-8\" ?>\n"sv;
         out << "<svg xmlns=\"http://www.w3.org/2000/svg\" version=\"1.1\">\n"sv;
         for (const auto& obj : objects_) {
@@ -277,4 +277,5 @@ namespace svg {
         }
         out << "</svg>"sv;
     }
+
 }

@@ -1,14 +1,29 @@
 #include "json.h"
 
+#include <iterator>
 #include <utility>
 
-using namespace std;
-
 namespace json {
+
+    using namespace std;
+    using namespace std::literals;
+
     namespace {
-        Node LoadNode(istream& input);
+
+        Node LoadNode(std::istream& input);
+        Node LoadString(std::istream& input);
+
+        string LoadLiteral(istream& input) {
+            string s;
+            while (isalpha(input.peek())) {
+                s.push_back(static_cast<char>(input.get()));
+            }
+            return s;
+        }
+
         Node LoadArray(istream& input) {
-            Array result;
+            vector<Node> result;
+
             for (char c; input >> c && c != ']';) {
                 if (c != ',') {
                     input.putback(c);
@@ -19,6 +34,32 @@ namespace json {
                 throw ParsingError("Array parsing error"s);
             }
             return Node(move(result));
+        }
+
+        Node LoadDict(istream& input) {
+            Dict dict;
+
+            for (char c; input >> c && c != '}';) {
+                if (c == '"') {
+                    std::string key = LoadString(input).AsString();
+                    if (input >> c && c == ':') {
+                        if (dict.find(key) != dict.end()) {
+                            throw ParsingError("Duplicate key '"s + key + "' have been found");
+                        }
+                        dict.emplace(move(key), LoadNode(input));
+                    }
+                    else {
+                        throw ParsingError(": is expected but '"s + c + "' has been found"s);
+                    }
+                }
+                else if (c != ',') {
+                    throw ParsingError(R"(',' is expected but ')"s + c + "' has been found"s);
+                }
+            }
+            if (!input) {
+                throw ParsingError("Dictionary parsing error"s);
+            }
+            return Node(move(dict));
         }
 
         Node LoadString(istream& input) {
@@ -68,49 +109,8 @@ namespace json {
                 }
                 ++it;
             }
+
             return Node(move(s));
-        }
-
-        string LoadLiteral(istream& input) {
-            string s;
-            while (isalpha(input.peek())) {
-                s.push_back(static_cast<char>(input.get()));
-            }
-            return s;
-        }
-
-        Node LoadNull(istream& input) {
-            if (auto literal = LoadLiteral(input); literal == "null"sv) {
-                return Node{ nullptr };
-            }
-            else {
-                throw ParsingError("Failed to parse '"s + literal + "' as null"s);
-            }
-        }
-
-        Node LoadDict(istream& input) {
-            Dict dict;
-            for (char c; input >> c && c != '}';) {
-                if (c == '"') {
-                    std::string key = LoadString(input).AsString();
-                    if (input >> c && c == ':') {
-                        if (dict.find(key) != dict.end()) {
-                            throw ParsingError("Duplicate key '"s + key + "' have been found");
-                        }
-                        dict.emplace(move(key), LoadNode(input));
-                    }
-                    else {
-                        throw ParsingError(": is expected but '"s + c + "' has been found"s);
-                    }
-                }
-                else if (c != ',') {
-                    throw ParsingError(R"(',' is expected but ')"s + c + "' has been found"s);
-                }
-            }
-            if (!input) {
-                throw ParsingError("Dictionary parsing error"s);
-            }
-            return Node(move(dict));
         }
 
         Node LoadBool(istream& input) {
@@ -123,6 +123,15 @@ namespace json {
             }
             else {
                 throw ParsingError("Failed to parse '"s + s + "' as bool"s);
+            }
+        }
+
+        Node LoadNull(istream& input) {
+            if (auto literal = LoadLiteral(input); literal == "null"sv) {
+                return Node{ nullptr };
+            }
+            else {
+                throw ParsingError("Failed to parse '"s + literal + "' as null"s);
             }
         }
 
@@ -175,11 +184,11 @@ namespace json {
             try {
                 if (is_int) {
                     try {
-                        return Node{ stoi(parsed_num) };
+                        return stoi(parsed_num);
                     }
                     catch (...) {}
                 }
-                return Node{ stod(parsed_num) };
+                return stod(parsed_num);
             }
             catch (...) {
                 throw ParsingError("Failed to convert "s + parsed_num + " to number"s);
@@ -227,6 +236,7 @@ namespace json {
                 return { out, indent_step, indent_step + indent };
             }
         };
+
         void PrintNode(const Node& value, const PrintContext& ctx);
 
         template <typename Value>
@@ -302,8 +312,7 @@ namespace json {
             for (const auto& [key, node] : nodes) {
                 if (first) {
                     first = false;
-                }
-                else {
+                } else {
                     out << ",\n"sv;
                 }
                 inner_ctx.PrintIndent();
@@ -323,39 +332,24 @@ namespace json {
                 },
                 node.GetValue());
         }
+
     }  // namespace
 
-    bool Node::IsArray() const {
-        return std::holds_alternative<Array>(*this);
-    }
-
-    const Array& Node::AsArray() const {
-        if (!IsArray()) {
-            throw logic_error("Not an array"s);
-        }
-        return std::get<Array>(*this);
-    }
-
-    Array& Node::AsArray() {
-        if (!IsArray()) {
-            throw logic_error("Not an array"s);
-        }
-        return std::get<Array>(*this);
-    }
+        //------------ Node ---------------
 
     bool Node::IsInt() const {
-        return std::holds_alternative<int>(*this);
+        return holds_alternative<int>(*this);
     }
 
     int Node::AsInt() const {
         if (!IsInt()) {
             throw logic_error("Not an int"s);
         }
-        return std::get<int>(*this);
+        return get<int>(*this);
     }
 
     bool Node::IsPureDouble() const {
-        return std::holds_alternative<double>(*this);
+        return holds_alternative<double>(*this);
     }
 
     bool Node::IsDouble() const {
@@ -363,78 +357,109 @@ namespace json {
     }
 
     double Node::AsDouble() const {
-        return IsPureDouble() ? std::get<double>(*this) : AsInt();
+        if (!IsDouble()) {
+            throw logic_error("Not a double"s);
+        }
+        return IsPureDouble() ? get<double>(*this) : AsInt();
     }
 
     bool Node::IsBool() const {
-        return std::holds_alternative<bool>(*this);
+        return holds_alternative<bool>(*this);
     }
 
     bool Node::AsBool() const {
         if (!IsBool()) {
             throw logic_error("Not a bool"s);
         }
-        return std::get<bool>(*this);
+        return get<bool>(*this);
+    }
+
+    bool Node::IsNull() const {
+        return holds_alternative<nullptr_t>(*this);
+    }
+
+    bool Node::IsArray() const {
+        return holds_alternative<Array>(*this);
+    }
+
+    const Array& Node::AsArray() const {
+        if (!IsArray()) {
+            throw logic_error("Not an array"s);
+        }
+        return get<Array>(*this);
+    }
+
+    Array&Node::AsArray() {
+        if (!IsArray()) {
+            throw logic_error("Not an array"s);
+        }
+        return get<Array>(*this);
     }
 
     bool Node::IsString() const {
-        return std::holds_alternative<std::string>(*this);
+        return holds_alternative<string>(*this);
     }
 
     const string& Node::AsString() const {
         if (!IsString()) {
             throw logic_error("Not a string"s);
         }
-        return std::get<std::string>(*this);
+        return get<string>(*this);
     }
 
     bool Node::IsDict() const {
-        return std::holds_alternative<Dict>(*this);
+        return holds_alternative<Dict>(*this);
     }
 
     const Dict& Node::AsDict() const {
         if (!IsDict()) {
             throw logic_error("Not a dict"s);
         }
-        return std::get<Dict>(*this);
+        return get<Dict>(*this);
     }
 
     Dict& Node::AsDict() {
         if (!IsDict()) {
             throw logic_error("Not a dict"s);
         }
-        return std::get<Dict>(*this);
+        return get<Dict>(*this);
     }
 
-    bool Node::IsNull() const {
-        return std::holds_alternative<std::nullptr_t>(*this);
+    bool Node::operator==(const Node& rhs) const {
+        return GetValue() == rhs.GetValue();
     }
 
     const Node::Value& Node::GetValue() const {
         return *this;
     }
 
-    bool Node::operator==(const Node& other) const {
-        return this->GetValue() == other.GetValue();
+    bool operator!=(const Node& lhs, const Node& rhs) {
+        return !(lhs == rhs);
     }
 
-    bool Node::operator!=(const Node& other) const {
-        return !(*this == other);
-    }
+    //------------ Document ---------------
 
     Document::Document(Node root)
-        : root_(move(root)) {
-    }
+        : root_(move(root)) {}
 
     const Node& Document::GetRoot() const {
         return root_;
+    }
+
+    bool operator==(const Document& lhs, const Document& rhs) {
+        return lhs.GetRoot() == rhs.GetRoot();
+    }
+
+    bool operator!=(const Document& lhs, const Document& rhs) {
+        return !(lhs == rhs);
     }
 
     Document Load(istream& input) {
         return Document{ LoadNode(input) };
     }
 
-    void Print(const Document& doc, std::ostream& output) {
+    void Print(const Document& doc, ostream& output) {
         PrintNode(doc.GetRoot(), PrintContext{ output });
     }
+
 }  // namespace json

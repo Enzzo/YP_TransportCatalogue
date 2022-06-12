@@ -13,39 +13,47 @@
 #include "router.h"
 #include "transport_catalogue.h"
 
-namespace tr {
+namespace router::tr {
+
     class TransportRouter {
     public:
-        using Graph = graph::DirectedWeightedGraph<Road>;
-        using Router = graph::Router<Road>;
+        using Graph = graph::DirectedWeightedGraph<tr::Road>;
+        using Router = graph::Router<tr::Road>;
+
+        explicit                                                   TransportRouter(const tc::TransportCatalogue& base_data);
+
+        void                                                       SetSettings(const Settings& settings);
+        
+        Settings                                                   GetSettings() const;               
+
+        void                                                       MakeGraph();
+
+        std::optional<tr::ReportRouter>                            GetReportRouter(const std::string_view from,
+                                                                                   const std::string_view to) const;
 
     private:
-        const tc::TransportCatalogue& transport_catalogue_;
-        Settings settings_;
-        Graph graph_;
-        std::shared_ptr<Router> router_;        
-        std::unordered_map<std::string_view, graph::VertexId> name_id_;
-        std::unordered_map<graph::VertexId, std::string_view> id_name_;
-        std::unordered_set<std::string> names_;
+        const tc::TransportCatalogue&                              base_data_;
+        Settings                                                   settings_;
+        Graph                                                      graph_;
+        std::shared_ptr<Router>                                    router_;
+        std::unordered_map<std::string_view, graph::VertexId>      name_id_;
+        std::unordered_map<graph::VertexId, std::string_view>      id_name_;
+        std::unordered_set<std::string>                            names_;
 
-    public:
-        explicit TransportRouter(const tc::TransportCatalogue& transport_catalogue) : transport_catalogue_(transport_catalogue), graph_(450) {};
-        void SetSettings(const Settings& settings);
-        Settings GetSettings() const;
-        void MakeGraph();
-        std::optional<ReportRouter> GetReportRouter(const std::string_view from, const std::string_view to) const;
+        template <typename ItStop>
+        void                                                       AddEdgesGraph(ItStop begin, ItStop end,
+            const std::string_view name);
 
-    private:
-        template <typename It>
-        void AddEdgesGraph(It begin, It end, const std::string_view name);
-        void AddEdgeGraph(std::shared_ptr<Stop> stop);
-        graph::VertexId MakeVertexId(std::shared_ptr<Stop> stop);
-        double CalculateWeightEdge(std::shared_ptr<Stop> from, std::shared_ptr<Stop> to) const;
+        void                                                       AddEdgeGraph(std::shared_ptr<tc::Stop> stop);
 
+        graph::VertexId                                            MakeVertexId(std::shared_ptr<tc::Stop> stop);
+
+        double                                                     CalculateWeightEdge(std::shared_ptr<tc::Stop> from,
+            std::shared_ptr<tc::Stop> to) const;
     };
 
-    template<typename It>
-    inline void TransportRouter::AddEdgesGraph(It begin, It end,
+    template<typename ItStop>
+    inline void TransportRouter::AddEdgesGraph(ItStop begin, ItStop end,
         const std::string_view name) {
         using namespace graph;
         for (auto from_id = begin; from_id != end; ++from_id) {
@@ -63,4 +71,5 @@ namespace tr {
             }
         }
     }
+
 }

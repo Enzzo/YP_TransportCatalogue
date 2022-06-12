@@ -3,8 +3,8 @@
 #include <iostream>
 #include <map>
 #include <string>
-#include <vector>
 #include <variant>
+#include <vector>
 
 namespace json {
 
@@ -22,44 +22,53 @@ namespace json {
         using variant::variant;
         using Value = variant;
 
-        bool IsInt() const;
-        int AsInt() const;
+        bool                                IsInt() const;
 
-        bool IsPureDouble() const;
-        bool IsDouble() const;
-        double AsDouble() const;
+        int                                 AsInt() const;
 
-        bool IsBool() const;
-        bool AsBool() const;
+        bool                                IsPureDouble() const;
 
-        bool IsString() const;
-        const std::string& AsString() const;
+        bool                                IsDouble() const;
 
-        bool IsDict() const;
+        double                              AsDouble() const;
 
-        const Dict& AsDict() const;
-        Dict& AsDict();
+        bool                                IsBool() const;
 
-        bool IsNull() const;
+        bool                                AsBool() const;
 
-        bool IsArray() const;
+        bool                                IsNull() const;
 
-        const Array& AsArray() const;
-        Array& AsArray();
+        bool                                IsArray() const;
 
-        const Value& GetValue() const;
+        const Array&                        AsArray() const;
 
-        bool operator==(const Node&) const;
-        bool operator!=(const Node&) const;
+        Array&                              AsArray();
+
+        bool                                IsString() const;
+
+        const std::string&                  AsString() const;
+
+        bool                                IsDict() const;
+
+        const                               Dict& AsDict() const;
+
+        Dict&                               AsDict();
+
+        bool                                operator==(const Node& rhs) const;
+
+        const Value&                        GetValue() const;
     };
+
+    inline bool operator!=(const Node& lhs, const Node& rhs);
 
     class Document {
     public:
-        explicit Document(Node root);
-        const Node& GetRoot() const;
+        explicit                                Document(Node root);
+
+        const                                   Node& GetRoot() const;
 
     private:
-        Node root_;
+        Node                                    root_;
     };
 
     inline bool operator==(const Document& lhs, const Document& rhs);

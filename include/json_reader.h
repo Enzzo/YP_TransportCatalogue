@@ -1,50 +1,59 @@
 #pragma once
+
+#include <filesystem>
 #include <iostream>
 
-#include "transport_catalogue.h"
-#include "request_handler.h"
-#include "map_renderer.h"
 #include "json.h"
-#include "domain.h"
+#include "map_renderer.h"
+#include "request_handler.h"
+#include "serialization.h"
+#include "transport_catalogue.h"
+#include "transport_router.h"
 
-class JSONreader final {
-	tc::TransportCatalogue& base_;
-	renderer::MapRenderer& map_renderer_;
-	RequestHandler& request_handler_;
-	tr::TransportRouter& router_;
-	json::Array base_requests_;
-	json::Array stat_requests_;
-	json::Array answers_;
+namespace router::reader {
 
-public:
-	JSONreader() = delete;
-	explicit JSONreader(tc::TransportCatalogue& base, renderer::MapRenderer& map_renderer, RequestHandler& request, tr::TransportRouter& router)
-		: base_(base)
-		, map_renderer_(map_renderer)
-		, request_handler_(request)		
-		, router_(router) {};
+    class JSONreader final {
+    public:
+        using Path = std::filesystem::path;
+        
+    JSONreader() = delete;
 
-	void ReadRequest(const json::Document&);
-	void ReadRequests(const json::Document&);
-	void ReadTransportCatalogue(std::ostream& ost = std::cout);
+        explicit JSONreader(ser::Serialization& serializator,
+                            tc::TransportCatalogue& base_data,
+                            renderer::MapRenderer& map_renderer,
+                            control::RequestHandler& request_handle,
+                            tr::TransportRouter& transport_router);
 
-private:
-	Stop MakeStop(const json::Dict&);
-	Bus MakeBus(const json::Dict&);
-	void SetDistancesFromStop(const json::Dict& description);
+        void ReadBase(std::istream& in = std::cin);        
+        void ReadRequests(std::istream& in = std::cin);
+        void Answer(std::ostream& out = std::cout);
 
-	renderer::Settings MakeRenderSettings(const json::Dict&) const;
-	tr::Settings MakeRouterSettings(const json::Dict&) const;
-	json::Node ReadStop(const json::Dict&);
-	json::Node ReadBus(const json::Dict&);
-	json::Node ReadMap(const json::Dict&);
-	json::Node ReadRoute(const json::Dict&);
+    private:
+        ser::Serialization& serializator_;
+        tc::TransportCatalogue& base_data_;
+        renderer::MapRenderer& map_renderer_;
+        control::RequestHandler& request_handler_;
+        tr::TransportRouter& transport_router_;
+        json::Array base_requests_;
+        json::Array stat_requests_;
+        json::Array answer_on_requests_;
 
-	void LoadStops();
-	void LoadBuses();
-	void LoadDistances();
-	void LoadTransportRouter();
+        void LoadTransportCatalogue();
+        void LoadMapRenderer();
+        void LoadTransportRouter();
+        void LoadStops();
+        void LoadDistances();
+        void LoadBuses();
+        tc::Stop MakeStop(const json::Dict& description) const;
+        void SetDistancesFromStop(const json::Dict& description);
+        tc::Bus MakeBus(const json::Dict& description) const;
 
-	svg::Point SetPoint(const json::Node&)const;
-	svg::Color SetColor(const json::Node&)const;
-};
+        renderer::Settings MakeRenderSettings(const json::Dict& description) const;
+        tr::Settings MakeRouterSettings(const json::Dict& description) const;        
+        Path MakeSerializationSetting(const json::Dict& description) const;
+        json::Node AnswerStop(const json::Dict& description);
+        json::Node AnswerBus(const json::Dict& description);
+        json::Node AnswerMap(const json::Dict& description);
+        json::Node AnswerRoute(const json::Dict& description);
+    };
+}

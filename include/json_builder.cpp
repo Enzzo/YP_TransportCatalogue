@@ -6,10 +6,15 @@
 
 namespace json {
 
+    using namespace std;
     using namespace std::literals;
+
+    //------------ BuildConstructor ---------------
 
     BuildConstructor::BuildConstructor(Builder& builder)
         : builder_(builder) {}
+
+    //------------ BuildContextFirst ---------------
 
     BuildContextFirst::BuildContextFirst(Builder& builder)
         : BuildConstructor(builder) {}
@@ -22,6 +27,8 @@ namespace json {
         return builder_.StartArray();
     }
 
+    //------------ BuildContextSecond ---------------
+
     BuildContextSecond::BuildContextSecond(Builder& builder)
         : BuildConstructor(builder) {}
 
@@ -33,6 +40,8 @@ namespace json {
         return builder_.EndDict();
     }
 
+    //------------ KeyContext ---------------
+
     KeyContext::KeyContext(Builder& builder)
         : BuildContextFirst(builder) {}
 
@@ -40,8 +49,12 @@ namespace json {
         return builder_.Value(value);
     }
 
+    //------------ ValueKeyContext ---------------
+
     ValueKeyContext::ValueKeyContext(Builder& builder)
         : BuildContextSecond(builder) {}
+
+    //------------ ValueArrayContext ---------------
 
     ValueArrayContext::ValueArrayContext(Builder& builder)
         : BuildContextFirst(builder) {}
@@ -54,11 +67,17 @@ namespace json {
         return builder_.EndArray();
     }
 
+    //------------ DictContext ---------------
+
     DictContext::DictContext(Builder& builder)
         : BuildContextSecond(builder) {}
 
+    //------------ ArrayContext ---------------
+
     ArrayContext::ArrayContext(Builder& builder)
         : ValueArrayContext(builder) {}
+
+    //------------ Builder ---------------
 
     Builder::Builder()
         : KeyContext(*this)
@@ -66,73 +85,73 @@ namespace json {
         , DictContext(*this)
         , ArrayContext(*this) {}
 
-    KeyContext& Builder::Key(std::string key) {
+    KeyContext& Builder::Key(string key) {
         if (UnableUseKey()) {
-            throw std::logic_error("Key Òan't be applied"s);
+            throw logic_error("Key —Åan't be applied"s);
         }
-        nodes_stack_.push_back(std::make_unique<Node>(key));
+        nodes_.push(make_unique<Node>(key));
         return *this;
     }
 
     Builder& Builder::Value(Node::Value value) {
         if (UnableUseValue()) {
-            throw std::logic_error("Value Òan't be applied"s);
+            throw std::logic_error("Value —Åan't be applied"s);
         }
         PushNode(value);
-        return AddNode(*nodes_stack_.back().release());
+        return AddNode(*nodes_.top().release());
     }
 
     DictContext& Builder::StartDict() {
         if (UnableUseStartDict()) {
-            throw std::logic_error("StartDict Òan't be applied"s);
+            throw logic_error("StartDict —Åan't be applied"s);
         }
-        nodes_stack_.push_back(std::make_unique<Node>(Dict()));
+        nodes_.push(make_unique<Node>(Dict()));
         return *this;
     }
 
     Builder& Builder::EndDict() {
         if (UnableUseEndDict()) {
-            throw std::logic_error("EndDict Òan't be applied"s);
+            throw logic_error("EndDict —Åan't be applied"s);
         }
-        return AddNode(*nodes_stack_.back().release());
+        return AddNode(*nodes_.top().release());
     }
 
     ArrayContext& Builder::StartArray() {
         if (UnableUseStartArray()) {
-            throw std::logic_error("StartArray Òan't be applied"s);
+            throw logic_error("StartArray —Åan't be applied"s);
         }
-        nodes_stack_.push_back(std::make_unique<Node>(Array()));
+        nodes_.push(make_unique<Node>(Array()));
         return *this;
     }
 
     Builder& Builder::EndArray() {
         if (UnableUseEndArray()) {
-            throw std::logic_error("EndArray Òan't be applied"s);
+            throw logic_error("EndArray —Åan't be applied"s);
         }
-        return AddNode(*nodes_stack_.back().release());
+        return AddNode(*nodes_.top().release());
     }
 
     Node Builder::Build() const {
         if (UnableUseBuild()) {
-            throw std::logic_error("Builder Òan't be applied"s);
+            throw logic_error("Builder —Åan't be applied"s);
         }
-        return node_;
+        return root_;
     }
 
     bool Builder::UnableAdd() const {
-        return !(nodes_stack_.empty()
-            || nodes_stack_.back()->IsArray()
-            || nodes_stack_.back()->IsString());
+        return !(nodes_.empty()
+            || nodes_.top()->IsArray()
+            || nodes_.top()->IsString());
     }
 
     bool Builder::IsMakeObj() const {
-        return !node_.IsNull();
+        return !root_.IsNull();
     }
 
     bool Builder::UnableUseKey() const {
         return IsMakeObj()
-            || nodes_stack_.empty()
-            || !nodes_stack_.back()->IsDict();
+            || nodes_.empty()
+            || !nodes_.top()->IsDict();
     }
 
     bool Builder::UnableUseValue() const {
@@ -146,8 +165,8 @@ namespace json {
 
     bool Builder::UnableUseEndDict() const {
         return IsMakeObj()
-            || nodes_stack_.empty()
-            || !nodes_stack_.back()->IsDict();
+            || nodes_.empty()
+            || !nodes_.top()->IsDict();
     }
 
     bool Builder::UnableUseStartArray() const {
@@ -156,8 +175,8 @@ namespace json {
 
     bool Builder::UnableUseEndArray() const {
         return IsMakeObj()
-            || nodes_stack_.empty()
-            || !nodes_stack_.back()->IsArray();
+            || nodes_.empty()
+            || !nodes_.top()->IsArray();
     }
 
     bool Builder::UnableUseBuild() const {
@@ -165,24 +184,25 @@ namespace json {
     }
 
     Builder& Builder::AddNode(const Node& node) {
-        nodes_stack_.pop_back();
-        if (nodes_stack_.empty()) {
-            node_ = node;
+        nodes_.pop();
+        if (nodes_.empty()) {
+            root_ = node;
         }
-        else if (nodes_stack_.back()->IsArray()) {
-            nodes_stack_.back()->AsArray().push_back(node);
+        else if (nodes_.top()->IsArray()) {
+            nodes_.top()->AsArray().push_back(node);
         }
         else {
-            const Node& key = *nodes_stack_.back().release();
-            nodes_stack_.pop_back();
-            nodes_stack_.back()->AsDict().emplace(key.AsString(), node);
+            const Node& key = *nodes_.top().release();
+            nodes_.pop();
+            nodes_.top()->AsDict().emplace(key.AsString(), node);
         }
         return *this;
     }
 
     void Builder::PushNode(Node::Value value) {
         visit([this](auto&& val) {
-            nodes_stack_.push_back(std::make_unique<Node>(val));
-            }, value);
+            nodes_.push(make_unique<Node>(val));
+        }, value);
     }
+
 }
