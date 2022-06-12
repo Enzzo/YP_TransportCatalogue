@@ -1,2 +1,2 @@
 # YP_TransportCatalogue
-A transport catalogue is instrument supports graphical output in xml, route search, and trip time calculation.
+A transport catalogue is instrument supports graphical output, route search, and trip time calculation.
